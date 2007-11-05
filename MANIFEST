@@ -1,0 +1,15 @@
+Build.PL
+Changes
+MANIFEST
+META.yml # Will be created by "make dist"
+README
+lib/SNMP/Class.pm
+lib/SNMP/Class/OID.pm
+lib/SNMP/Class/ResultSet.pm
+lib/SNMP/Class/Varbind.pm
+lib/SNMP/Class/Utils.pm
+t/00-load.t
+t/boilerplate.t
+t/pod-coverage.t
+t/pod.t
+t/test

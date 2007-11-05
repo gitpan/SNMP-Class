@@ -1,0 +1,18 @@
+Revision history for SNMP::Class
+
+0.05	2007-11-05
+	Some documentation for SNMP::Class
+
+0.04	2007-08-06
+	Fixed the bulkwalk mess to a point where it is functional
+	
+0.03	2007-08-05
+	Fixed bug regarding handling of ".0" instances 
+	by SNMP::Class::OID
+
+0.02	2007-08-03
+	Added an AUTOMETHOD to Class::SNMP
+
+0.01    Date/time
+        First version, released on an unsuspecting world.
+
