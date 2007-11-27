@@ -1,5 +1,8 @@
 Revision history for SNMP::Class
 
+0.06	2007-11-27
+	Minor changes to BUILD in order to handle ports and other misc SNMP::Session options
+
 0.05	2007-11-05
 	Some documentation for SNMP::Class
 

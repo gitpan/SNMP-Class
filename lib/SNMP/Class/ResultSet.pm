@@ -207,6 +207,14 @@ sub find {
 	return $self->instance(@matchlist);
 }
 
+=head2
+number_of_items
+
+Returns the number of items present inside the ResultSet
+
+=cut
+
+
 sub number_of_items {
 	my $self = shift(@_) or croak "Incorrect call to number_of_items";
 	return scalar @{$self->{varbinds}};

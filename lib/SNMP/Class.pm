@@ -6,7 +6,7 @@ SNMP::Class - A convenience class around the NetSNMP perl modules.
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 SYNOPSIS
 
@@ -28,6 +28,11 @@ This module aims to enable snmp-related tasks to be carried out with the best po
 	my $if_descr_3 = $ifTable->object("ifDescr")->instance("3");
 	#more compact
 	my $if_descr_3 = $ifTable->object(ifDescr).3;
+
+	#iterate over interface descriptions -- method senses list context and returns array
+	for my $descr ($ifTable->object"ifDescr")) { 
+		print $descr->get_value,"\n";
+	}
 	
 	#get the speed of the instance for which ifDescr is en0
 	my $en0_speed = $ifTable->find("ifDescr","en0")->object("ifSpeed")->get_value;  
@@ -54,14 +59,14 @@ use SNMP::Class::Utils;
 use Class::Std;
 use Log::Log4perl qw(:easy);
 
-Log::Log4perl->easy_init($DEBUG);
+Log::Log4perl->easy_init($ERROR);
 my $logger = get_logger();
 
 
-my (%session,%name,%version,%community) : ATTRS;
+my (%session,%name,%version,%community,%deactivate_bulkwalks) : ATTRS;
 
 
-=head2 new({DestHost=>$desthost,Community=>$community,Version=>$version})
+=head2 new({DestHost=>$desthost,Community=>$community,Version=>$version,DestPort=>$port})
 
 This method creates a new session with a managed device. At this point Version can only be 1 or 2. If Version is not present, the library will try to probe by querying sysName.0 from the device using version 2 and then version 1, whichever succeeds first. This method croaks if a session cannot be created. If the managed node cannot return the sysName.0 object, the method will also croak. 
 
@@ -75,6 +80,7 @@ sub BUILD {
 	my $session;
 	my @versions = ( $arg_ref->{Version} );
 
+
 	#if the user did not specify a version, then we will try one after the other
 	if ( !defined($arg_ref->{Version})) {
 		@versions = ( "2" , "1" );
@@ -85,12 +91,26 @@ sub BUILD {
 		$arg_ref->{Community} = "public";
 	}	
 
+	if (!defined($arg_ref->{RemotePort})) {
+		$logger->debug("setting port to default (161)");
+		$arg_ref->{RemotePort} = 161;
+	}
+
 	$logger->info("Host is $arg_ref->{DestHost}, community is $arg_ref->{Community}");
 	
 	for my $version (@versions) {
 		$logger->debug("trying version $version");
-		$logger->debug("doing SNMP::Session->new(DestHost => $arg_ref->{DestHost},Version => $version ,Community => $arg_ref->{Community})");
-		$session{$obj_ID} = SNMP::Session->new(DestHost => $arg_ref->{DestHost},Version => $version ,Community => $arg_ref->{Community});
+		
+		#set $arg_ref->{Version} to $version
+		$arg_ref->{Version}=$version;
+
+		#construct a string for debug purposes and log it
+		my $debug_str = join(",",map( "$_=>$arg_ref->{$_}", (keys %{$arg_ref})));
+		$logger->debug("doing SNMP::Session->new($debug_str)");
+
+		#construct the arguments we will be passing to SNMP::Session->new
+		my @argument_array = map { $_ => $arg_ref->{$_}  } (keys %{$arg_ref});
+		$session{$obj_ID} = SNMP::Session->new(@argument_array);
 		if(!$session{$obj_ID}) {
 			$logger->debug("null session. Next.");
 		}
@@ -117,6 +137,19 @@ sub BUILD {
 	croak "cannot initiate object for $arg_ref->{DestHost},$arg_ref->{Community}";
 
 }
+
+=head2 deactivate_bulkwalks
+
+If called, this method will permanently deactivate usage of bulkwalk for the session. Mostly useful for broken agents, some buggy versions of Net-SNMP etc. 
+=cut
+
+sub deactivate_bulkwalks {
+	my $self = shift(@_) or croak "deactivate_bulkwalks called outside of an object context";
+	my $id = ident $self;
+	$deactivate_bulkwalks{$id} = 1 ;
+	return;	
+}
+
 
 sub getOid :RESTRICTED() {
 	
@@ -165,8 +198,12 @@ One should probably also take a look at L<SNMP::Class::ResultSet> pod to see wha
 #normal snmpwalk, or, in the case of SNMPv2c, bulkwalk.
 sub walk {
 	my $self = shift(@_) or confess "sub walk called outside of an object context";
-	####my $id = ident $self;
+	my $id = ident $self;
 	my $oid_name = shift(@_) or confess "First argument missing in call to get_data";
+	
+	if ($deactivate_bulkwalks{$id} == 1) { 
+		return $self->_walk($oid_name);
+	}
 
 	if ($self->getVersion > 1) {
 		return $self->bulk($oid_name);
