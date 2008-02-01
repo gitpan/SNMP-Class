@@ -20,7 +20,7 @@ sub new {
 		$oid_str = ".0";
 	}
 	my $self = {};
-	$self->{oid} = NetSNMP::OID->new($oid_str) or confess "Cannot invoke NetSNMP::OID::new method with ".join(',',@_)."\n";
+	$self->{oid} = NetSNMP::OID->new($oid_str) or confess "Cannot create a new NetSNMP::OID object for $oid_str";
 	return bless $self,$class;
 }
 

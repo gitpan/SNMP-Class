@@ -7,15 +7,15 @@ use Carp;
 use SNMP::Class::OID;
 use Data::Dumper;
 use UNIVERSAL qw(isa);
-use Log::Log4perl qw(:easy);
 
-Log::Log4perl->easy_init($DEBUG);
+use Log::Log4perl qw(:easy);
 my $logger = get_logger();
 
 use overload 
 	'@{}' => \&get_varbind_listref,
 	'.' => \&dot,
 ##	'""'  => \&to_scalar,
+	'+' => \&plus,
 	fallback => 1;
 
 
@@ -149,7 +149,7 @@ sub instance {
 
 	my @matched_items = ();
 	for my $match (@matchlist) {
-		$logger->debug("Filtering for instance=".$match->to_string);
+		$logger->debug("Filtering for instance=".$match->numeric);
 		CORE::push @matched_items,(grep { $match == $_->get_instance } @{$self->{varbinds}});
 	}
 	my $ret_set = SNMP::Class::ResultSet->new;
@@ -220,6 +220,11 @@ sub number_of_items {
 	return scalar @{$self->{varbinds}};
 }
 
+sub is_empty {
+	my $self = shift(@_) or croak "Incorrect call to is_empty";
+	return ($self->number_of_items == 0);
+}
+
 sub get_varbind_listref {
 	my $self = shift(@_) or croak "Incorrect call to get_varbind_list";
 	return $self->{varbinds};
@@ -227,13 +232,19 @@ sub get_varbind_listref {
 
 sub dot {
 	my $self = shift(@_) or croak "Incorrect call to dot";
-	my $instance = shift(@_); #we won't test because the instance could be false, e.g. ifName.0
-	return $self->instance($instance)->get_value;
+	my $str = shift(@_); #we won't test because it could be false, e.g. ifName.0
+	
+	#the $str could be either an object id or an instance
+	if (SNMP::Class::Utils::is_valid_oid($str)) {
+		return $self->object($str);
+	}
+
+	return $self->instance($str)->get_value;
 }
 
 sub get_value {
 	my $self = shift(@_) or croak "Incorrect call to get_value";
-	if(! $self->number_of_items) {
+	if( $self->is_empty) {
 		croak "get_value cannot be called on an empty result set";
 	} 
 	if ($self->number_of_items > 1) {
@@ -241,6 +252,25 @@ sub get_value {
 	} 
 	return $self->{varbinds}->[0]->get_value;	
 }
+
+#warning: plus will not protect you from duplicates
+sub plus {
+	my $self = shift(@_) or croak "Incorrect call to plus";
+	my $item = shift(@_) or croak "Argument to add(+) missing";
+
+	#check that this object is an SNMP::Class::Varbind
+	confess "item to add is not an SNMP::Class::ResultSet!" unless (ref($item)&&(eval $item->isa("SNMP::Class::ResultSet")));
+
+	my $ret = SNMP::Class::ResultSet->new();
+
+	map { $ret->push($_) } (@{$self->get_varbind_listref});
+	map { $ret->push($_) } (@{$item->get_varbind_listref});
+
+	return $ret;
+}
+
+
+	
  
 
 =head1 NAME

@@ -5,6 +5,9 @@ use warnings;
 use Carp;
 use Exporter;
 
+use Log::Log4perl qw(:easy);
+my $logger = get_logger();
+
 our @ISA=qw(Exporter);
 
 our @EXPORT = qw(get_attr children_of label_of parent_of oid_of descendants_of);
@@ -68,5 +71,18 @@ sub descendants_of {
 
 	return \%descendants_of;
 }
+
+sub is_valid_oid {
+	my $str = shift(@_);
+        if (eval { my $dummy = get_attr($str,"objectID") }) {
+                $logger->debug("$str seems like a valid OID ");
+		return 1;
+        }
+        else {
+                $logger->debug("$str doesn't seem like a valid OID. Returning...");
+                return;
+        }
+}
+
 	
 1;

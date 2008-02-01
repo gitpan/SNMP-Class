@@ -6,7 +6,7 @@ SNMP::Class - A convenience class around the NetSNMP perl modules.
 
 =cut
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 SYNOPSIS
 
@@ -59,7 +59,7 @@ use SNMP::Class::Utils;
 use Class::Std;
 use Log::Log4perl qw(:easy);
 
-Log::Log4perl->easy_init($ERROR);
+Log::Log4perl->easy_init($DEBUG);
 my $logger = get_logger();
 
 
@@ -201,7 +201,7 @@ sub walk {
 	my $id = ident $self;
 	my $oid_name = shift(@_) or confess "First argument missing in call to get_data";
 	
-	if ($deactivate_bulkwalks{$id} == 1) { 
+	if ($deactivate_bulkwalks{$id}) { 
 		return $self->_walk($oid_name);
 	}
 

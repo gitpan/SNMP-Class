@@ -16,7 +16,7 @@ sub new {
 		$self->{varbind} = SNMP::Varbind->new([$_[0]->numeric]) or croak "Cannot invoke SNMP::Varbind::new method with ".$_[0]->numeric." \n";
 	} 
 	else {
-		croak "Argument was not an SNMP::Class::OID";
+		confess "Argument was not an SNMP::Class::OID";
 	}
 	
 	###maybe unneeded
