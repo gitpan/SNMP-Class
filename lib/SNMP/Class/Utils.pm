@@ -27,6 +27,10 @@ sub str2arr {
 sub get_attr {
 	my $oid_name = shift(@_) or croak "Incorrect call to get_attr";
 	my $attr = shift(@_) or croak "Incorrect call to get_attr";
+	if(!defined($SNMP::MIB{$oid_name})) {
+		$logger->debug("There is no such object: $oid_name");
+		return;
+	}
 	return $SNMP::MIB{$oid_name}->{$attr};
 }
 
@@ -74,12 +78,12 @@ sub descendants_of {
 
 sub is_valid_oid {
 	my $str = shift(@_);
-        if (eval { my $dummy = get_attr($str,"objectID") }) {
+        if (eval { get_attr($str,"objectID") }) {
                 $logger->debug("$str seems like a valid OID ");
 		return 1;
         }
         else {
-                $logger->debug("$str doesn't seem like a valid OID. Returning...");
+                $logger->debug("$str doesn't seem like a valid OID. Returning undef...");
                 return;
         }
 }

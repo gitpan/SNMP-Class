@@ -6,7 +6,7 @@ SNMP::Class - A convenience class around the NetSNMP perl modules.
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -57,10 +57,14 @@ use SNMP::Class::Varbind;
 use SNMP::Class::OID;
 use SNMP::Class::Utils;
 use Class::Std;
-use Log::Log4perl qw(:easy);
 
-Log::Log4perl->easy_init($DEBUG);
+use Log::Log4perl qw(:easy);
+Log::Log4perl->easy_init({
+	level=>$INFO,
+	layout => "%M:%L %m%n",
+});
 my $logger = get_logger();
+
 
 
 my (%session,%name,%version,%community,%deactivate_bulkwalks) : ATTRS;
@@ -238,7 +242,7 @@ sub bulk:RESTRICTED() {
 	my ($temp) = $session{$id}->bulkwalk(0,10,$vb->get_varbind); #magic number 10 for the time being
 	#make sure nothing went wrong
 	confess $session{$id}->{ErrorStr} if ($session{$id}->{ErrorNum} != 0);
-	
+
 	####my $ret;
 	for my $object (@{$temp}) {
 		###my ($oid_name,$instance,$value,$type) = @{$object};
@@ -255,7 +259,7 @@ sub bulk:RESTRICTED() {
 
 
 #does an snmpwalk on the session object
-sub _walk {
+sub _walk:RESTICTED() {
 	my $self = shift(@_) or confess "Incorrect call to _walk, self argument missing";
 	my $id = ident $self;
 	my $oid = shift(@_) or confess "First argument missing in call to get_data";
@@ -282,12 +286,19 @@ sub _walk {
 		#make sure nothing went wrong
 		confess $session{$id}->{ErrorStr} if ($session{$id}->{ErrorNum} != 0);
 
-		$logger->debug($vb->get_oid->to_string."=".$value." Object is ".$vb->get_object->to_string.",instance is ".$vb->get_instance_numeric);
+		$logger->debug($vb->get_oid->to_string."=".$value." Object is ".$vb->get_object->to_string.",instance is ".$vb->get_instance_numeric.",type is ".$vb->get_type);
+
+		#handle some special types
+		#For example, a type of ENDOFMIBVIEW means we should stop
+		if($vb->get_type eq 'ENDOFMIBVIEW') {
+			$logger->debug("We should stop because an end of MIB View was encountered");
+			last LOOP;
+		}
 
 		#make sure that we got a different oid than in the previous iteration
 		#(remember, the NetSNMP::OID has an overloaded '==' operator)
 		if($previous == $vb->get_oid) { 
-			confess "OID not increasing at ".$vb->get_oid.". Previous oid was $previous\n";
+			confess "OID not increasing at ".$vb->get_oid->numeric." (".$vb->get_oid->to_string.")\n";
 		}
 
 		#make sure we are still under the original $oid -- if not we are finished
@@ -336,7 +347,7 @@ sub AUTOMETHOD {
 	return sub {
 		if(wantarray) {
 			$logger->debug("$subname called in list context");
-			return @{$self->walk($subname)->get_varbind_listref};
+			return @{$self->walk($subname)->varbinds};
 		}
 		return $self->walk($subname);
 	}

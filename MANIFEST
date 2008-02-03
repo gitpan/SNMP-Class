@@ -1,7 +1,7 @@
 Build.PL
 Changes
 lib/SNMP/Class.pm
-lib/SNMP/Class/MIB.pm
+lib/SNMP/Class/Cache.pm
 lib/SNMP/Class/OID.pm
 lib/SNMP/Class/ResultSet.pm
 lib/SNMP/Class/Utils.pm

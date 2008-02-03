@@ -1,5 +1,11 @@
 Revision history for SNMP::Class
 
+0.08 (skipped 0.07 version)
+	Added the SNMP::Class::Cache class which is simultaneously an SNMP::Class and an SNMP::Class::ResultSet
+	Proper handling of the end-of-mib-view condition
+	New method 'filter' added to ResultSet
+	Numerous minor improvements  
+
 0.06	2007-11-27
 	Minor changes to BUILD in order to handle ports and other misc SNMP::Session options
 
