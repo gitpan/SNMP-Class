@@ -6,11 +6,11 @@ SNMP::Class::ResultSet - Holds a set of varbinds
 
 =head1 VERSION
 
-Version 0.01
+Version 0.08
 
 =cut
 
-our $version = '0.01';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 

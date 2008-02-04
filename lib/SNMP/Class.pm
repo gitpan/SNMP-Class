@@ -4,9 +4,13 @@ package SNMP::Class;
 
 SNMP::Class - A convenience class around the NetSNMP perl modules. 
 
+=head1 VERSION
+
+Version 0.09
+
 =cut
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 SYNOPSIS
 

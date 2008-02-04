@@ -2,11 +2,15 @@ package SNMP::Class::Cache;
 
 =head1 NAME
 
-SNMP::Class::Cache - 
+SNMP::Class::Cache - An SNMP::Class::ResultSet which is also a live SNMP::Class session. 
+
+=head1 VERSION
+
+Version 0.08
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 

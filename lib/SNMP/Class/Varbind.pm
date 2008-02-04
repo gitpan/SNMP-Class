@@ -105,11 +105,11 @@ SNMP::Class::Varbind - The great new SNMP::Class::Varbind!
 
 =head1 VERSION
 
-Version 0.01
+Version 0.08
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 

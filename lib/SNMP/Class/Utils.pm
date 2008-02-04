@@ -1,5 +1,7 @@
 package SNMP::Class::Utils;
 
+our $VERSION='0.08';
+
 use strict;
 use warnings;
 use Carp;
