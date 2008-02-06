@@ -1,6 +1,6 @@
 ---
 name: SNMP-Class
-version: 0.10.00
+version: 0.11
 author:
   - 'Athanasios Douitsis <aduitsis@cpan.org>'
 abstract: A convenience class around the NetSNMP perl modules.
@@ -19,7 +19,7 @@ build_requires:
 provides:
   SNMP::Class:
     file: lib/SNMP/Class.pm
-    version: 0.10.00
+    version: 0.11
   SNMP::Class::Cache:
     file: lib/SNMP/Class/Cache.pm
     version: 0.08

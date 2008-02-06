@@ -6,11 +6,11 @@ SNMP::Class - A convenience class around the NetSNMP perl modules.
 
 =head1 VERSION
 
-Version 0.09
+Version 0.11
 
 =cut
 
-use version; our $VERSION = qv('0.10.00');
+our $VERSION = '0.11';
 
 =head1 SYNOPSIS
 
