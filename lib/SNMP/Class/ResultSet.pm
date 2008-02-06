@@ -29,6 +29,7 @@ use SNMP;
 use warnings;
 use strict;
 use Carp;
+use Carp::Assert;
 use SNMP::Class::OID;
 use Data::Dumper;
 use UNIVERSAL qw(isa);
@@ -108,7 +109,7 @@ sub dump {
 sub push {
 	my $self = shift(@_) or croak "Incorrect call to push";
 	my $id = ident $self;
-	my $payload = shift(@_) or croak "Missing payload";
+	my $payload = shift(@_);
 
 	#make sure that this is of the correct class
 	if (! eval $payload->isa('SNMP::Class::Varbind')) {
@@ -124,6 +125,12 @@ sub push {
 	###$self->{oid_index}->{$payload->get_oid}->{$payload->get_instance_numeric} = \$payload;
 	
 }
+
+sub pop {
+	my $self = shift(@_) or croak "Incorrect call";
+	return pop @{$self->varbinds};
+}
+
 
 #take a list with possible duplicate elements
 #return a list with each element unique
@@ -207,7 +214,7 @@ sub object {
 sub instance {
 	my $self = shift(@_) or croak "Incorrect call to object";
 	my @matchlist = ();
-
+	
 	for my $object (@_) {
 		if(ref($object)) {
 			if ( eval $object->isa("SNMP::Class::OID") ) {
@@ -329,19 +336,51 @@ sub dot {
 	
 	$logger->debug("dot called with $str as argument");
 
-	return $self->instance($str)->get_value;
+	my $ret = $self->instance($str);
+
+	if ($ret->is_empty) {
+		confess "empty resultset";
+	} 
+	if ($ret->number_of_items > 1) {
+		carp "Warning: resultset with more than 1 items";
+	}
+	return $ret->item(0);
 }
 
-sub get_value {
-	my $self = shift(@_) or croak "Incorrect call to get_value";
-	if( $self->is_empty) {
-		croak "get_value cannot be called on an empty result set";
-	} 
-	if ($self->number_of_items > 1) {
-		carp "Warning: Calling get_value on a result set that has more than one items";
-	} 
-	return $self->varbinds->[0]->get_value;	
+sub item {
+	my $self = shift(@_) or croak "Incorrect call";
+	my $index = shift(@_) || 0;
+	return $self->varbinds->[$index];
 }
+
+sub item_method {
+	my $self = shift(@_) or croak "Incorrect call";
+	my $method = shift(@_) or croak "missing method name";
+	my @rest = (@_);
+	if($self->is_empty) {
+		croak "$method cannot be called on an empty result set";
+	}
+	if ($self->number_of_items > 1) {
+		carp "Warning: Calling $method on a result set that has more than one item";
+	}
+	return $self->item(0)->$method(@rest);
+}
+
+sub get_value { return shift(@_)->item_method("get_value") }
+sub get_pretty { return shift(@_)->item_method("get_pretty") }
+
+
+
+#sub get_value {
+#	my $self = shift(@_) or croak "Incorrect call to get_value";
+#	if( $self->is_empty) {
+#		croak "get_value cannot be called on an empty result set";
+#	} 
+#	if ($self->number_of_items > 1) {
+#		carp "Warning: Calling get_value on a result set that has more than one items";
+#	} 
+#	return $self->varbinds->[0]->get_value;	
+#}
 
 #warning: plus will not protect you from duplicates
 sub plus {
@@ -367,6 +406,19 @@ sub append {
 	map { $self->push($_) } (@{$item->varbinds});
 	return;
 }
+
+sub map {
+	my $self = shift(@_) or croak "Incorrect call";
+	my $func = shift(@_) or croak "missing sub";
+	should(ref $func,'CODE');	
+	$logger->debug("mapping....");
+	for(@{$self->varbinds}) {
+		$logger->debug("executing sub with ".$_->dump);
+		$func->();
+	}
+	return;
+}
+
 
 sub AUTOMETHOD {
 	my $self = shift(@_) or confess("Incorrect call to AUTOMETHOD");

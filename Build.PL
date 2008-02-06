@@ -16,6 +16,7 @@ my $builder = Module::Build->new(
 	'SNMP'       	=> 0,
 	'NetSNMP::OID' 	=> 0,
 	'Log::Log4perl' => 0,
+	'version'	=> 0,
     },
     add_to_cleanup      => [ 'SNMP::Class-*' ],
 );

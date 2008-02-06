@@ -41,7 +41,7 @@ sub add {
 		if (eval { $temp = $self->SUPER::walk($module) }) {
 			$logger->debug("fetched contents of $module");
 			if ($temp->is_empty) {
-				carp "Module $module not there";
+				carp $self->get_name," does not seem to have any $module instances";
 				next LOOP;
 			} 
 			$module{ident $self}->{$module} = 1;

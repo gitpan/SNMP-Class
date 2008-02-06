@@ -10,7 +10,7 @@ Version 0.09
 
 =cut
 
-our $VERSION = '0.09';
+use version; our $VERSION = qv('0.10.00');
 
 =head1 SYNOPSIS
 
@@ -54,6 +54,7 @@ This module aims to enable snmp-related tasks to be carried out with the best po
 use warnings;
 use strict;
 use Carp;
+use Carp::Assert;
 use Data::Dumper;
 use SNMP;
 use SNMP::Class::ResultSet;
@@ -64,11 +65,12 @@ use Class::Std;
 
 use Log::Log4perl qw(:easy);
 Log::Log4perl->easy_init({
-	level=>$INFO,
+	level=>$DEBUG,
 	layout => "%M:%L %m%n",
 });
 my $logger = get_logger();
 
+####&SNMP::loadModules('ALL');
 
 
 my (%session,%name,%version,%community,%deactivate_bulkwalks) : ATTRS;
@@ -179,6 +181,18 @@ sub getOid :RESTRICTED() {
 	return $a[0];
 }
 
+=head2 getSysName
+
+Returns the sysname of the machine corresponding to the session
+
+=cut
+
+sub get_name {
+	my $self = shift(@_) or confess "incorrect call";
+	my $id = ident $self;
+	return $name{$id};
+}
+
 
 =head2 getVersion
 
@@ -231,7 +245,9 @@ sub bulk:RESTRICTED() {
 	$logger->debug("Object to bulkwalk is ".$oid->to_string);
 
 	#create the varbind
-	my $vb = SNMP::Class::Varbind->new($oid) or confess "cannot create new varbind for $oid";
+	#was: my $vb = SNMP::Class::Varbind->new($oid) or confess "cannot create new varbind for $oid";
+	my $vb = SNMP::Class::Varbind->new($oid);
+	should(ref $vb,'SNMP::Class::Varbind');
 
 	#create the bag
 	my $ret = SNMP::Class::ResultSet->new();
@@ -253,7 +269,7 @@ sub bulk:RESTRICTED() {
 		###print Dumper($object);
 		my $vb = SNMP::Class::Varbind->new_from_varbind($object);
 		
-		$logger->debug($vb->get_oid->to_string."=".$vb->get_value." Object is ".$vb->get_object->to_string.",instance is ".$vb->get_instance_numeric);
+		$logger->debug($vb->get_oid->to_string."=".$vb->get_value." Object is ".$vb->get_object->to_string.",instance is ".$vb->get_instance_numeric.",type is ".$vb->get_type);
 		
 		#put it in the bag
 		$ret->push($vb);
@@ -278,7 +294,9 @@ sub _walk:RESTICTED() {
 	my $previous = SNMP::Class::OID->new("0.0");##let's just assume that no oid can ever be 0.0
 
 	#create the varbind
-	my $vb = SNMP::Class::Varbind->new($oid) or confess "cannot create new varbind for $oid";
+	#was: my $vb = SNMP::Class::Varbind->new($oid) or confess "cannot create new varbind for $oid";
+	my $vb = SNMP::Class::Varbind->new($oid);
+	should(ref $vb,'SNMP::Class::Varbind');
 
 	#create the bag
 	my $ret = SNMP::Class::ResultSet->new();

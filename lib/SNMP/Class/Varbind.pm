@@ -3,9 +3,15 @@ package SNMP::Class::Varbind;
 use SNMP;
 use warnings;
 use strict;
-use Carp;
+use Carp qw(cluck carp croak confess);
 use SNMP::Class::OID;
 use Data::Dumper;
+
+use overload 
+	'""' => \&get_value,
+	fallback => 1
+;
+
 
 	
 sub new {
@@ -23,6 +29,7 @@ sub new {
 	###else {
         ###	$self->{varbind} = $class->SUPER::new(@_) or croak "Cannot invoke SUPER::new method with ".join(',',@_),"\n";
 	###}
+
        	return bless $self,$class;
 }
 
@@ -41,60 +48,91 @@ sub new_from_varbind {
 
 #return the varbind
 sub get_varbind {
-	my $self = shift(@_) or croak "Incorrect call to get_varbind";
-	return $self->{varbind};
+	my $ref_self = \ shift(@_) or croak "Incorrect call to get_varbind";
+	return $$ref_self->{varbind};
 }
 
 #returns the object part of the varbind. (example: ifName or .1.2.3)
 #The type of the object returned is SNMP::Class::OID
 sub get_object {
-	my $self = shift(@_) or croak "Incorrect call to get_object";
-	return new SNMP::Class::OID($self->get_varbind->[0]);
+	my $ref_self = \ shift(@_) or croak "Incorrect call to get_object";
+	return new SNMP::Class::OID($$ref_self->get_varbind->[0]);
 }
 
 #returns the instance part of the varbind. (example: 10.10.10.10)
 #If the instance is '', it will return undef (surprise,surprise!)
 sub get_instance {
-	my $self = shift(@_) or croak "Incorrect call to get_instance";
-	if ($self->get_varbind->[1] eq '') {
-		return;
+	my $ref_self = \ shift(@_) or croak "Incorrect call to get_instance";
+	if ($$ref_self->get_varbind->[1] eq '') {
+		#this is an ugly hack....
+		#the SNMP library will occasionally return varbinds with a '' instance, which is, well, not good
+		#if we find the instance empty, we'll just stick the zeroDotzero instance and return it instead of undef
+		#this happens with e.g. the sysUpTimeInstance object
+		return SNMP::Class::OID->new('0.0');
 	}
-	return SNMP::Class::OID->new($self->get_varbind->[1]);
+	return SNMP::Class::OID->new($$ref_self->get_varbind->[1]);
 }
 
 #returns a string numeric representation of the instance
 sub get_instance_numeric {
-	my $self = shift(@_) or croak "Incorrect call to get_instance_oid";
-	if(!$self->get_instance) {
+	my $ref_self = \ shift(@_) or croak "Incorrect call to get_instance_oid";
+	if(!$$ref_self->get_instance) {
 		return '';
 	}
-	return $self->get_instance->numeric;
+	return $$ref_self->get_instance->numeric;
 }
 
 #returns the full oid of this varbind. 
 #type returned is SNMP::Class::OID
 #also handles correctly the case where the instance is undef
 sub get_oid {
-	my $self = shift(@_) or croak "Incorrect call to get_oid";
-	if(!$self->get_instance) {
-		return $self->get_object;
+	my $ref_self = \ shift(@_) or croak "Incorrect call to get_oid";
+	if(!$$ref_self->get_instance) {
+		return $$ref_self->get_object;
 	} 
-	return $self->get_object + $self->get_instance;
+	return $$ref_self->get_object + $$ref_self->get_instance;
 }
 	
 sub get_value {
-	my $self = shift(@_) or croak "Incorrect call to get_value";
-	return $self->get_varbind->[2];
+	my $ref_self = \ shift(@_);
+	#my $self = shift(@_) or croak "Incorrect call to get_value";
+	return $$ref_self->get_varbind->[2];
+}
+
+sub dump {
+	my $self = shift(@_);
+	return $self->get_object->to_string." ".$self->get_instance->to_string." ".$self->get_value." ".$self->get_type;
+}
+
+=head2 get_value_pretty
+
+Returns the varbinds' value, where objectid oids are coverted to their respective label
+
+=cut
+
+sub get_pretty {
+	####my $ref_to_self = \ shift;
+	my $ref_self = \ shift(@_) or confess "Incorrect call";
+	if ($$ref_self->get_type eq 'OBJECTID') {
+		###$logger->debug("This is an objectid...I will try to translate it to a label");
+		return SNMP::Class::Utils::label_of($$ref_self->get_value);
+	}
+	my $enum;
+	if($enum = SNMP::Class::Utils::get_attr($$ref_self->get_object->to_string,"enums")) {
+		my %reverse = map { $enum->{$_} => $_ } (keys %{$enum});
+		return $reverse{$$ref_self->get_value};
+	}
+	return $$ref_self->get_value;
 }
 
 sub get_type {
-	my $self = shift(@_) or croak "Incorrect call to get_type";
-	return $self->get_varbind->[3];
+	my $ref_self = \ shift(@_) or croak "Incorrect call to get_type";
+	return $$ref_self->get_varbind->[3];
 }
 
 sub normalize {
-	my $self = shift(@_) or croak "Incorrect call to normalize";
-	$self->get_varbind->[0] = $self->get_oid->numeric;
+	my $ref_self = \ shift(@_) or croak "Incorrect call to normalize";
+	$$ref_self->get_varbind->[0] = $$ref_self->get_oid->numeric;
 }
 
 	
