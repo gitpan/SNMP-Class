@@ -27,7 +27,8 @@ sub str2arr {
 #2)The attribute of that oid we are interested in
 #example: get_attr('sysName','objectID')
 sub get_attr {
-	my $oid_name = shift(@_) or croak "Incorrect call to get_attr";
+	my $oid_name = shift(@_);
+	croak unless defined($oid_name);
 	my $attr = shift(@_) or croak "Incorrect call to get_attr";
 	if(!defined($SNMP::MIB{$oid_name})) {
 		$logger->debug("There is no such object: $oid_name");
@@ -43,9 +44,38 @@ sub children_of {
 	my @children = map { $_->{label} } @{$children};
 }
 
+sub textual_convention_of {
+	my $oid_name = shift(@_) or croak "Incorrect call to textual_convention_of";
+	return get_attr($oid_name,'textualConvention');
+}
+
+sub syntax_of {
+	my $oid_name = shift(@_) or croak "Incorrect call to textual_convention_of";
+	return get_attr($oid_name,'syntax');
+}
+
+sub enums_of {
+	my $oid_name = shift(@_) or croak "Incorrect call to enums_of";
+	my $enum = SNMP::Class::Utils::get_attr($oid_name,"enums");
+	if(%{$enum}) {
+		$logger->debug("$oid_name is an enumerated type");
+		my %reverse = map { $enum->{$_} => $_ } (keys %{$enum});
+		return \%reverse;
+	}
+	return;
+}
+	
+
 sub label_of {
-	my $oid_name = shift(@_) or croak "Incorrect call to label_of";
+	my $oid_name = shift(@_);
+	croak "Incorrect call to label_of" unless defined($oid_name);
 	return get_attr($oid_name,'label');
+}
+
+sub subid_of {
+	my $oid_name = shift(@_);
+	croak "Incorrect call to label_of" unless defined($oid_name);
+	return get_attr($oid_name,'subID');
 }
 
 sub parent_of {
@@ -55,7 +85,8 @@ sub parent_of {
 }
 
 sub oid_of {
-	my $oid_name = shift(@_) or croak "Incorrect call to oid_of";
+	my $oid_name = shift(@_);
+	croak unless defined($oid_name);
 	return get_attr($oid_name,'objectID');
 }
 

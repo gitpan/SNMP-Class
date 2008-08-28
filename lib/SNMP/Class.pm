@@ -10,7 +10,7 @@ Version 0.11
 
 =cut
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ This module aims to enable snmp-related tasks to be carried out with the best po
 	my $if_descr_3 = $ifTable->object("ifDescr")->instance("3");
 	#more compact
 	my $if_descr_3 = $ifTable->object(ifDescr).3;
-
+	
 	#iterate over interface descriptions -- method senses list context and returns array
 	for my $descr ($ifTable->object"ifDescr")) { 
 		print $descr->get_value,"\n";
@@ -45,7 +45,7 @@ This module aims to enable snmp-related tasks to be carried out with the best po
 	while($s->ifDescr) {
 		print $_->get_value;
 	}
- 
+	
    
 =head1 METHODS
 
@@ -54,7 +54,6 @@ This module aims to enable snmp-related tasks to be carried out with the best po
 use warnings;
 use strict;
 use Carp;
-use Carp::Assert;
 use Data::Dumper;
 use SNMP;
 use SNMP::Class::ResultSet;
@@ -78,13 +77,15 @@ my (%session,%name,%version,%community,%deactivate_bulkwalks) : ATTRS;
 
 =head2 new({DestHost=>$desthost,Community=>$community,Version=>$version,DestPort=>$port})
 
-This method creates a new session with a managed device. At this point Version can only be 1 or 2. If Version is not present, the library will try to probe by querying sysName.0 from the device using version 2 and then version 1, whichever succeeds first. This method croaks if a session cannot be created. If the managed node cannot return the sysName.0 object, the method will also croak. 
+This method creates a new session with a managed device. Argument must be a hash reference (see B<Class::Std> for that requirement). The members of the hash reference are the same with the arguments of the new method of the B<SNMP> module. If Version is not present, the library will try to probe by querying sysName.0 from the device using version 2 and then version 1, whichever succeeds first. This method croaks if a session cannot be created. If the managed node cannot return the sysName.0 object, the method will also croak. Most people will want to use the method as follows and let the module figure out the rest.
+ 
+ my $session = SNMP::Class->new({DestHost=>'myhost.mydomain'}); 
+ 
 
 =cut
  
 
 sub BUILD {
-
 	my ($self, $obj_ID, $arg_ref) = @_;
 
 	my $session;
@@ -137,13 +138,13 @@ sub BUILD {
 			return 1;
 		} else { 
 			$logger->debug("getOID(sysName,0) failed. Error is $@");
-			$logger->debug("Going to next community");
+			$logger->debug("Going to next SNMP version");
 			next;
 		}
 		
 	}
 	#if we got here, the session could not be created
-	$logger->debug("session could not be created");
+	$logger->debug("session could not be created after all");
 	croak "cannot initiate object for $arg_ref->{DestHost},$arg_ref->{Community}";
 
 }
@@ -151,6 +152,7 @@ sub BUILD {
 =head2 deactivate_bulkwalks
 
 If called, this method will permanently deactivate usage of bulkwalk for the session. Mostly useful for broken agents, some buggy versions of Net-SNMP etc. 
+
 =cut
 
 sub deactivate_bulkwalks {
@@ -201,8 +203,9 @@ Returns the SNMP version of the session object.
 =cut
 
 #This method returns the SNMP version of the object
-sub getVersion {
-	my $self = shift(@_) or confess "sub getVersion called outside of an object context";
+sub get_version {
+	my $self = shift(@_);
+	confess "sub getVersion called outside of an object context" unless (ref $self);
 	my $id = ident $self;
 	return $version{$id};
 }
@@ -210,9 +213,9 @@ sub getVersion {
 
 =head2 walk
 
-A generalized walk method. Takes 1 argument, which is the object to walk. Depending on whether the session object is version 1 or 2, it will respectively try to use either SNMP GETNEXT's or GETBULK. On all cases, an SNMP::Class::ResultSet is returned. If something goes wrong, the method will croak.
+A generalized walk method. Takes 1 argument, which is the object to walk. Depending on whether the session object is version 1 or 2, it will respectively try to use either SNMP GETNEXT's or GETBULK. On all cases, an B<SNMP::Class::ResultSet> is returned. If something goes wrong, the method will croak.
 
-One should probably also take a look at L<SNMP::Class::ResultSet> pod to see what's possible.
+One should probably also take a look at L<SNMP::Class::ResultSet> to see what's possible.
 
 =cut
 
@@ -239,38 +242,31 @@ sub bulk:RESTRICTED() {
 	my $id = ident $self;
 	my $oid = shift(@_) or confess "First argument missing in call to bulk";	
 	
-	#wait, wait, wait...did we get a symbolic name, a numeric oid or a hybrid???
-	#ok...I 'll just feed it to SNMP::Class::OID and get the numeric form
 	$oid = SNMP::Class::OID->new($oid);
 	$logger->debug("Object to bulkwalk is ".$oid->to_string);
 
 	#create the varbind
 	#was: my $vb = SNMP::Class::Varbind->new($oid) or confess "cannot create new varbind for $oid";
-	my $vb = SNMP::Class::Varbind->new($oid);
-	should(ref $vb,'SNMP::Class::Varbind');
+	my $vb = SNMP::Class::Varbind->new(oid=>$oid);
+	croak "vb is not an SNMP::Class::Varbind" unless (ref $vb eq 'SNMP::Class::Varbind');
 
 	#create the bag
-	my $ret = SNMP::Class::ResultSet->new();
+	my $ret = SNMP::Class::ResultSet->new;
 
 	#the first argument is definitely 0, we don't want to just emulate an snmpgetnext call
 	#the second argument is tricky. Setting it too high (example: 100000) tends to berzerk some snmp agents, including netsnmp.
 	#setting it too low will degrade performance in large datasets since the client will need to generate more traffic
 	#So, let's set it to some reasonable value, say 10.
-	#we definitely should consider giving to the library user some knob to turn.
-	#After all, he probably will have a good sense about how big the walk he is doing is.
+	#we definitely should consider giving the user some knob to turn.
+	#After all, he probably will have a good sense about how big the is walk he is doing.
 	
-	my ($temp) = $session{$id}->bulkwalk(0,10,$vb->get_varbind); #magic number 10 for the time being
+	my ($temp) = $session{$id}->bulkwalk(0,10,$vb->generate_varbind); #magic number 10 for the time being
 	#make sure nothing went wrong
 	confess $session{$id}->{ErrorStr} if ($session{$id}->{ErrorNum} != 0);
 
-	####my $ret;
 	for my $object (@{$temp}) {
-		###my ($oid_name,$instance,$value,$type) = @{$object};
-		###print Dumper($object);
-		my $vb = SNMP::Class::Varbind->new_from_varbind($object);
-		
-		$logger->debug($vb->get_oid->to_string."=".$vb->get_value." Object is ".$vb->get_object->to_string.",instance is ".$vb->get_instance_numeric.",type is ".$vb->get_type);
-		
+		my $vb = SNMP::Class::Varbind->new(varbind=>$object);		
+		DEBUG $vb->dump;
 		#put it in the bag
 		$ret->push($vb);
 	}					
@@ -279,119 +275,106 @@ sub bulk:RESTRICTED() {
 
 
 #does an snmpwalk on the session object
-sub _walk:RESTICTED() {
+sub _walk:RESTRICTED() {
 	my $self = shift(@_) or confess "Incorrect call to _walk, self argument missing";
 	my $id = ident $self;
-	my $oid = shift(@_) or confess "First argument missing in call to get_data";
-
-	#wait, wait, wait...did we get a symbolic name, a numeric oid or a hybrid???
-	#we don't care, feed it to SNMP::Class::OID and it'll figure it out
-	$oid = SNMP::Class::OID->new($oid);
-	$logger->debug("Object to walk is ".$oid->to_string);
+	my $oid_str = shift(@_) or confess "First argument missing in call to get_data";
+	my $oid = SNMP::Class::OID->new($oid_str); #that's the original requested oid. We won't change that object.
+	
+	DEBUG "Object to walk is ".$oid->to_string;
 
 	#we will store the previous-loop-iteration oid here to make sure we didn't enter some loop
 	#we init it to something that can't be equal to anything
 	my $previous = SNMP::Class::OID->new("0.0");##let's just assume that no oid can ever be 0.0
 
 	#create the varbind
-	#was: my $vb = SNMP::Class::Varbind->new($oid) or confess "cannot create new varbind for $oid";
-	my $vb = SNMP::Class::Varbind->new($oid);
-	should(ref $vb,'SNMP::Class::Varbind');
+	my $vb = SNMP::Class::Varbind->new(oid=>$oid);
+	croak "returned vb is not an SNMP::Class::Varbind" unless (ref $vb eq 'SNMP::Class::Varbind');
 
 	#create the bag
 	my $ret = SNMP::Class::ResultSet->new();
 
 	LOOP: while(1) {
-		#call an SNMP GETNEXT operation
-		my $value = $session{$id}->getnext($vb->get_varbind);
+		
+		my $varbind = $vb->generate_varbind;
 
+		#call an SNMP GETNEXT operation
+		#@my $value = $session{$id}->getnext($vb->get_varbind);
+		my $value = $session{$id}->getnext($varbind);
 		#make sure nothing went wrong
 		confess $session{$id}->{ErrorStr} if ($session{$id}->{ErrorNum} != 0);
 
-		$logger->debug($vb->get_oid->to_string."=".$value." Object is ".$vb->get_object->to_string.",instance is ".$vb->get_instance_numeric.",type is ".$vb->get_type);
+		#now sync the varbind back to the vb
+		#$vb = SNMP::Class::Varbind->new_from_varbind($varbind);
+		$vb = SNMP::Class::Varbind->new(varbind=>$varbind);
 
+		DEBUG $vb->dump;
+		
 		#handle some special types
 		#For example, a type of ENDOFMIBVIEW means we should stop
-		if($vb->get_type eq 'ENDOFMIBVIEW') {
-			$logger->debug("We should stop because an end of MIB View was encountered");
+		if($vb->type eq 'ENDOFMIBVIEW') {
+			DEBUG "We should stop because an end of MIB View was encountered";
 			last LOOP;
 		}
 
 		#make sure that we got a different oid than in the previous iteration
-		#(remember, the NetSNMP::OID has an overloaded '==' operator)
-		if($previous == $vb->get_oid) { 
-			confess "OID not increasing at ".$vb->get_oid->numeric." (".$vb->get_oid->to_string.")\n";
+		if($previous->oid_is_equal( $vb )) { 
+			confess "OID not increasing at ".$vb->to_string." (".$vb->numeric.")\n";
 		}
 
 		#make sure we are still under the original $oid -- if not we are finished
-		if(!$oid->contains($vb->get_oid)) {
-			$logger->debug($oid->numeric." does not contain ".$vb->get_oid->numeric." ... we should stop");
+		if(!$oid->contains($vb)) {
+			$logger->debug($oid->numeric." does not contain ".$vb->numeric." ... we should stop");
 			last LOOP;
 		}
 
-		####$r->{$vb->[0]}->{$vb->[1]} = $vb->[2];
-		#this is the same object all the times -- plz fix me
 		$ret->push($vb);
 
-		#Keep a copy for the next iteration
-		$previous = $vb->get_oid;
+		#Keep a copy for the next iteration. Remember that only the reference is copied. 
+		$previous = $vb;
 
-		#we need to make sure that next iteration we won't overwrite the same $vb
-		$vb = SNMP::Class::Varbind->new($vb->get_oid);
+		#we need to make sure that next iteration we won't use the same $vb
+		$vb = SNMP::Class::Varbind->new(oid=>$vb);
 
 	};
 	return $ret;
 }	
 
-=head2 AUTOMETHOD
+#=head2 AUTOMETHOD
+#
+#Using a method call that coincides with an SNMP OBJECT-TYPE name is equivalent to issuing a walk with that name as argument. This is provided as a shortcut which can result to more easy to read programs. 
+#Also, if such a method is used in a list context, it won't return an SNMP::ResultSet object, but rather a list with the ResultSet's contents. This is pretty convenient for iterating through SNMP results using few lines of code.
+#
+#=cut
+#
+#sub AUTOMETHOD {
+#	my $self = shift(@_) or croak("Incorrect call to AUTOMETHOD");
+#	my $ident = shift(@_) or croak("Second argument to AUTOMETHOD missing");
+#	my $subname = $_;   # Requested subroutine name is passed via $_;
+#	$logger->debug("AUTOMETHOD called as $subname");  
+#	
+#	if (eval { my $dummy = SNMP::Class::Utils::get_attr($subname,"objectID") }) {
+#		$logger->debug("$subname seems like a valid OID ");
+#	}
+#	else {
+#		$logger->debug("$subname doesn't seem like a valid OID. Returning...");
+#		return;
+#	}
+#	
+#	#we'll just have to create this little closure and return it to the Class::Std module
+#	#remember: this closure will run in the place of the method that was called by the invoker
+#	return sub {
+#		if(wantarray) {
+#			$logger->debug("$subname called in list context");
+#			return @{$self->walk($subname)->varbinds};
+#		}
+#		return $self->walk($subname);
+#	}
+#
+#}
 
-Using a method call that coincides with an SNMP OBJECT-TYPE name is equivalent to issuing a walk with that name as argument. This is provided as a shortcut which can result to more easy to read programs. 
-Also, if such a method is used in a list context, it won't return an SNMP::ResultSet object, but rather a list with the ResultSet's contents. This is pretty convenient for iterating through SNMP results using few lines of code.
-
-=cut
-
-sub AUTOMETHOD {
-	my $self = shift(@_) or croak("Incorrect call to AUTOMETHOD");
-	my $ident = shift(@_) or croak("Second argument to AUTOMETHOD missing");
-	my $subname = $_;   # Requested subroutine name is passed via $_;
-	$logger->debug("AUTOMETHOD called as $subname");  
-	
-	if (eval { my $dummy = SNMP::Class::Utils::get_attr($subname,"objectID") }) {
-		$logger->debug("$subname seems like a valid OID ");
-	}
-	else {
-		$logger->debug("$subname doesn't seem like a valid OID. Returning...");
-		return;
-	}
-	
-	#we'll just have to create this little closure and return it to the Class::Std module
-	#remember: this closure will run in the place of the method that was called by the invoker
-	return sub {
-		if(wantarray) {
-			$logger->debug("$subname called in list context");
-			return @{$self->walk($subname)->varbinds};
-		}
-		return $self->walk($subname);
-	}
-
-}
 
 
-
-#note: all the following MIB parsing methods could be moved to a special module
-
-#arr2str converts an array to a numeric oid
-sub arr2str {
-	return '.'.join('.',@_);
-}
-
-#str2arr converts a .1.2.3.4-style oid to an array
-sub str2arr {
-	my $str = shift(@_) or confess "str2arr 1st arg missing";
-	my ($dummy,@ret) = split('\.',$str); 
-	return @ret;
-}
-	
 
 
 
@@ -441,7 +424,7 @@ This module obviously needs the perl libraries from the excellent Net-SNMP packa
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 Athanasios Douitsis, all rights reserved.
+Copyright 2008 Athanasios Douitsis, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

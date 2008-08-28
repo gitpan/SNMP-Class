@@ -99,7 +99,8 @@ sub AUTOMETHOD {
 	#question: do we need to query the managed node for the object $subname,
 	#or do we have it cached already? Let's check. If we don't have it, we
 	#will try to append it. 
-	if($self->SNMP::Class::ResultSet::object($subname)->is_empty) {
+
+	if($self->SNMP::Class::ResultSet::label($subname)->is_empty) {
 		$logger->debug("No $subname entries in the resultset...we'll try to walk first");
 		my $result = $self->walk($subname);
 		$self->append($result);
