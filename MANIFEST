@@ -5,8 +5,6 @@ lib/SNMP/Class/Cache.pm
 lib/SNMP/Class/OID.pm
 lib/SNMP/Class/ResultSet.pm
 lib/SNMP/Class/Utils.pm
-lib/SNMP/Class/Value.pm
-lib/SNMP/Class/Value/MacAddress.pm
 lib/SNMP/Class/Varbind.pm
 lib/SNMP/Class/Varbind/IpAddress.pm
 lib/SNMP/Class/Varbind/SysUpTime.pm

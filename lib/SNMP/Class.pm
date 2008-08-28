@@ -10,7 +10,7 @@ Version 0.11
 
 =cut
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 SYNOPSIS
 
@@ -77,7 +77,7 @@ my (%session,%name,%version,%community,%deactivate_bulkwalks) : ATTRS;
 
 =head2 new({DestHost=>$desthost,Community=>$community,Version=>$version,DestPort=>$port})
 
-This method creates a new session with a managed device. Argument must be a hash reference (see B<Class::Std> for that requirement). The members of the hash reference are the same with the arguments of the new method of the B<SNMP> module. If Version is not present, the library will try to probe by querying sysName.0 from the device using version 2 and then version 1, whichever succeeds first. This method croaks if a session cannot be created. If the managed node cannot return the sysName.0 object, the method will also croak. Most people will want to use the method as follows and let the module figure out the rest.
+This method creates a new session with a managed device. Argument must be a hash reference (see L<Class::Std> for that requirement). The members of the hash reference are the same with the arguments of the new method of the L<SNMP> module. If Version is not present, the library will try to probe by querying sysName.0 from the device using version 2 and then version 1, whichever succeeds first. This method croaks if a session cannot be created. If the managed node cannot return the sysName.0 object, the method will also croak. Most people will want to use the method as follows and let the module figure out the rest.
  
  my $session = SNMP::Class->new({DestHost=>'myhost.mydomain'}); 
  
@@ -216,7 +216,7 @@ sub get_version {
 
 =head2 walk
 
-A generalized walk method. Takes 1 argument, which is the object to walk. Depending on whether the session object is version 1 or 2, it will respectively try to use either SNMP GETNEXT's or GETBULK. On all cases, an B<SNMP::Class::ResultSet> is returned. If something goes wrong, the method will croak.
+A generalized walk method. Takes 1 argument, which is the object to walk. Depending on whether the session object is version 1 or 2, it will respectively try to use either SNMP GETNEXT's or GETBULK. On all cases, an L<SNMP::Class::ResultSet> is returned. If something goes wrong, the method will croak.
 
 One should probably also take a look at L<SNMP::Class::ResultSet> to see what's possible.
 

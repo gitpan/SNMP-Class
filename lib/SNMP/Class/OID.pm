@@ -12,13 +12,9 @@ use Data::Dumper;
 
 SNMP::Class::OID - Represents an SNMP Object-ID. 
 
-=head1 VERSION
-
-Version 0.11
-
 =cut
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 SYNOPSIS
 
@@ -97,7 +93,7 @@ use overload
 
 =head2 new
 
-new can be used to construct a new object-id. Takes one string as an argument, like ".1.3.6.4.1". Returns an SNMP::Class::OID object, or confesses if that is not possible. If the 1rst argument is a B<NetSNMP::OID> instead of a string, the constructor will notice and take appropriate action to return a valid object.
+new can be used to construct a new object-id. Takes one string as an argument, like ".1.3.6.4.1". Returns an SNMP::Class::OID object, or confesses if that is not possible. If the 1rst argument is a L<NetSNMP::OID> instead of a string, the constructor will notice and take appropriate action to return a valid object.
 
 =cut
  

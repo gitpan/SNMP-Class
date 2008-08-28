@@ -4,8 +4,6 @@ use warnings;
 use strict;
 use Carp qw(cluck carp croak confess);
 use SNMP::Class::OID;
-use SNMP::Class::Value;
-use SNMP::Class::Value::MacAddress;
 use Data::Dumper;
 use Log::Log4perl qw(:easy);
 

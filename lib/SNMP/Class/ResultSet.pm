@@ -6,7 +6,7 @@ SNMP::Class::ResultSet - A list of L<SNMP::Class::Varbind> objects.
 
 =head1 VERSION
 
-Version 0.11
+Version 0.12
 
 =cut
 

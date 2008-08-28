@@ -18,6 +18,9 @@ my $builder = Module::Build->new(
 	'Log::Log4perl' => 0,
 	'version'	=> 0,
     },
+    recommends => {
+	'Time::HiRes;'	=> 0,
+    },
     add_to_cleanup      => [ 'SNMP::Class-*' ],
 );
 
