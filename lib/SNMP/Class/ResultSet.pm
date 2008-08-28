@@ -151,7 +151,7 @@ sub push {
 
 	#make sure that this is of the correct class
 	if (! eval $payload->isa('SNMP::Class::Varbind')) {
-		die "Payload is not an SNMP::Class::Varbind";
+		confess "Payload is not an SNMP::Class::Varbind";
 	}
 	push @{$self->varbinds},($payload);
 	$self->index_oid->{$payload->numeric} = \$payload;
@@ -248,7 +248,7 @@ sub match_value {
 sub match_callback {
 	my $match_sub_ref = shift(@_);
 	my @matchlist = (@_);
-	croak "Please do not supply empty matchlists in your filters -- completely pointless" unless @matchlist;
+	confess "Please do not supply empty matchlists in your filters -- completely pointless" unless @matchlist;
 	return sub {		
 		for my $match_item (@matchlist) {
 			if ($match_sub_ref->($_,$match_item)) {
@@ -329,6 +329,9 @@ sub find {
 		CORE::push @matchlist,(@{$self->filter_label($object)->filter_value($value)});
 	}
 	
+	#be careful. The matchlist which we have may very well be empty! 
+	#we should not be filtering against an empty matchlist
+	#note that the filter_instance will croak in such a case.
 	return $self->filter_instance(@matchlist);
 }
 

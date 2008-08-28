@@ -224,6 +224,10 @@ Slice can extract a portion of an object-id and return it as a new SNMP::Class::
  my $suboid = $oid->slice(1,2,3); #completely equivalent
  my $suboid = $oid->slice(1,3); #also completely equivalent
 
+To extract a single number from the object-id you can simply say for example:
+
+ my $suboid = $oid->slice(2);
+
 =cut
 
 sub slice {
@@ -425,8 +429,8 @@ Can create an oid from a literal string. Useful to generate instances which corr
 =cut  
 
 sub new_from_string {
-	my $class = shift(@_) or croak "Incorrect call to new";
-	my $str = shift(@_) or croak "Missing string as 1st argument";
+	my $class = shift(@_) or confess "Incorrect call to new";
+	my $str = shift(@_) or confess "Missing string as 1st argument";
 	my $implied = shift(@_) || 0;
 	my $newstr;
 	if(!$implied) { $newstr = "." . CORE::length($str) }

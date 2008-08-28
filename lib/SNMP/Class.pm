@@ -10,7 +10,7 @@ Version 0.11
 
 =cut
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 SYNOPSIS
 
@@ -88,8 +88,11 @@ This method creates a new session with a managed device. Argument must be a hash
 sub BUILD {
 	my ($self, $obj_ID, $arg_ref) = @_;
 
+	croak "You must supply a DestHost in the arguments to new." unless defined($arg_ref->{DestHost});
+
 	my $session;
 	my @versions = ( $arg_ref->{Version} );
+
 
 
 	#if the user did not specify a version, then we will try one after the other
@@ -126,8 +129,8 @@ sub BUILD {
 			$logger->debug("null session. Next.");
 		}
 		my $name;
-		if(eval { $name = $self->getOid('sysName',0) }) {
-			$logger->debug("getOID(sysName,0) success. Name = $name");
+		if(eval { $name = $self->get_oid('sysName.0') }) {
+			$logger->debug("get_oID(sysName.0) success. Name = $name");
 			#if we got to this point, then this means that
 			#we were able to retrieve the sysname variable from the session
 			#session is probably good
@@ -163,22 +166,22 @@ sub deactivate_bulkwalks {
 }
 
 
-sub getOid :RESTRICTED() {
+sub get_oid {
 	
 	my $self = shift(@_) or croak "getvar called outside of an object context";
 	my $oid = shift(@_) or croak "first arg to getvar (oid), missing";
-	my $instance = shift(@_); #instance could be 0, so we do not check
-	if (!defined($instance)) { confess "second arg to getvar (instance), missing" }
+	####my $instance = shift(@_); #instance could be 0, so we do not check
+	####if (!defined($instance)) { confess "second arg to getvar (instance), missing" }
 	my $id = ident $self;
 
-	my $vars = new SNMP::VarList([$oid,$instance]) or confess "Internal Error: Could not create a new SNMP::VarList for $oid.$instance";
+	####my $vars = new SNMP::VarList([$oid,$instance]) or confess "Internal Error: Could not create a new SNMP::VarList for $oid.$instance";
 
-	my @a = $session{$id}->get($vars);
+	my @a = $session{$id}->get($oid);
 
-	###print Dumper(@a);
+	#print Dumper(@a);
 
-	croak $session{$id}->{ErrorStr} if ($session{$id}->{ErrorNum} != 0);
-	croak "Got error when tried to ask $session{$id}->{DestHost} for $oid.$instance" if ($a[0] eq "NOSUCHINSTANCE");
+	confess $session{$id}->{ErrorStr} if ($session{$id}->{ErrorNum} != 0);
+	croak "Got error when tried to ask $session{$id}->{DestHost} for $oid" if ($a[0] eq "NOSUCHINSTANCE");
 
 	return $a[0];
 }
@@ -196,7 +199,7 @@ sub get_name {
 }
 
 
-=head2 getVersion
+=head2 get_version
 
 Returns the SNMP version of the session object.
 
@@ -230,12 +233,50 @@ sub walk {
 		return $self->_walk($oid_name);
 	}
 
-	if ($self->getVersion > 1) {
+	if ($self->get_version > 1) {
 		return $self->bulk($oid_name);
 	} else {
 		return $self->_walk($oid_name);
 	}
 }
+
+#sub add_instance_to_bag {
+#	my $self = shift(@_) or confess "Incorrect call to add_instance_to_bag";
+#	my $oid = shift(@_) || confess "Missing 1st argument -- oid";
+#	my $bag = shift(@_) || confess "Missing 2nd argument -- bag";
+#	
+#	my @result;
+#	if ( eval { $self->get_oid($oid) } ) {
+#		$bag->push(SNMP::Class::Varbind->new(
+#}
+
+sub get_varbind :PRIVATE() {
+	my $self = shift(@_) or confess "Incorrect call to get_varbind";
+	my $id = ident $self;
+	my $vb = shift(@_);
+	my $bag = shift(@_);
+
+	my $varbind = $vb->generate_varbind;
+	my @a;
+	eval { @a = $session{$id}->get($varbind) }; 
+	if($@) {
+		confess "Could not make the initial GET request for ",$vb->to_string," because of error: ",$@;
+	}
+	if ($session{$id}->{ErrorNum} != 0) {
+		confess "Could not make the initial GET request  because of error: ".$session{$id}->{ErrorStr};
+		
+	}
+	if (($a[0] eq 'NOSUCHINSTANCE')||($a[0] eq 'NOSUCHOBJECT')) {
+		DEBUG "Skipping initial object ".$vb->to_string;
+		return;
+	}
+	my $vb2 = SNMP::Class::Varbind->new(varbind=>$varbind);
+	DEBUG "Pushing initial varbind ".$vb2->dump." to the resultset";
+	$bag->push( $vb2 );
+	DEBUG $bag->dump;
+}
+	
+
 
 sub bulk:RESTRICTED() {
 	my $self = shift(@_) or confess "Incorrect call to bulk, self argument missing";
@@ -252,6 +293,9 @@ sub bulk:RESTRICTED() {
 
 	#create the bag
 	my $ret = SNMP::Class::ResultSet->new;
+
+	#make the initial GET request and put it in the bag
+	$self->get_varbind($vb,$ret);
 
 	#the first argument is definitely 0, we don't want to just emulate an snmpgetnext call
 	#the second argument is tricky. Setting it too high (example: 100000) tends to berzerk some snmp agents, including netsnmp.
@@ -293,6 +337,10 @@ sub _walk:RESTRICTED() {
 
 	#create the bag
 	my $ret = SNMP::Class::ResultSet->new();
+
+	
+	#make the initial GET request and put it in the bag
+	$self->get_varbind($vb,$ret);
 
 	LOOP: while(1) {
 		
