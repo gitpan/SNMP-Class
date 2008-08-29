@@ -15,11 +15,20 @@ my $s = SNMP::Class->new({ DestHost => 'localhost' });
 $s->deactivate_bulkwalks;
 
 
-my $ifTable = $s->walk("ifTable");
+###my $ifTable = $s->walk("ifTable");
 
 #$ifTable->label("ifDescr","ifSpeed");
 #print $ifTable->value("en0")->dump;
-print $ifTable->find("ifDescr"=>"en0")->ifSpeed;
+#print $ifTable->find("ifDescr"=>"en0")->ifSpeed;
+
+my $ipf = $s->walk("ipForwarding")->value;
+
+unless ($ipf->is_forwarding) {
+	print STDERR "NOT forwarding\n\n";
+}
+
+
+
 
 exit;
 
@@ -128,7 +137,7 @@ isa_ok($v4,"SNMP::Class::Varbind");
 #print $ifDescr.1,"\n";
 
 
-print $ifTable->object("ifDescr").3,"\n";
+#####print $ifTable->object("ifDescr").3,"\n";
 
 
-print $ifTable->find("ifDescr","en0")->object("ifSpeed")->value,"\n";
+####print $ifTable->find("ifDescr","en0")->object("ifSpeed")->value,"\n";

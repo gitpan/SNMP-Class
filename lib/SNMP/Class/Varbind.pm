@@ -12,6 +12,7 @@ use Log::Log4perl qw(:easy);
 
 use SNMP::Class::Varbind::IpAddress;
 use SNMP::Class::Varbind::SysUpTime;
+use SNMP::Class::Varbind::IpForwarding;
 
 BEGIN {
 	eval { 
@@ -73,14 +74,14 @@ sub new {
 		}
 	}
 	
-	#defult fallback: value coincides with raw_value
+	#default fallback: value coincides with raw_value
 	#this may be freely modified later
 	if(defined($self->{raw_value})) {
 		$self->{value} = $self->{raw_value};
 	}
 	
 	#we now have an almost complete object. Let's see if there is any more functionality inside a callback
-	if($self->has_label&&defined($callback{label}->{$self->get_label})) {
+	if(defined($self->{raw_value})&&$self->has_label&&defined($callback{label}->{$self->get_label})) {
 		DEBUG "There is a special callback for label ".$self->get_label;
 		bless $self,$callback{label}->{$self->get_label};
 		if($self->can("initialize_callback_object")) {
@@ -89,7 +90,7 @@ sub new {
 		}
 
 	}
-	elsif($self->has_syntax&&defined($callback{syntax}->{$self->get_syntax})) {
+	elsif(defined($self->{raw_value})&&$self->has_syntax&&defined($callback{syntax}->{$self->get_syntax})) {
 		DEBUG "There is a special callback for syntax ".$self->get_syntax;
 		bless $self,$callback{syntax}->{$self->get_syntax};
 		if($self->can("initialize_callback_object")) {
@@ -100,6 +101,7 @@ sub new {
 	else {
 		bless $self,$class;
 	}
+
 	return $self;
 }
 
